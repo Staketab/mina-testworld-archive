@@ -12,7 +12,8 @@ services:
     restart: always
     env_file:
       - $HOME/mina-testworld-archive/.env
-    environment: 
+    environment:
+      MINA_PRIVKEY_PASS: ${MINA_PRIVKEY_PASS}
       UPTIME_PRIVKEY_PASS: ${UPTIME_PRIVKEY_PASS}
       MINA_LIBP2P_PASS: ${MINA_LIBP2P_PASS}
       RAYON_NUM_THREADS: ${RAYON_NUM_THREADS}
