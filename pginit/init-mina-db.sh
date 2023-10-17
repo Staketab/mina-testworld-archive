@@ -3,8 +3,6 @@
 set -e
 
 psql --username "postgres" --dbname "${PGDATABASE}" <<-EOSQL
-CREATE USER postgres WITH PASSWORD '${PGPASSWORD}';
-CREATE DATABASE ${PGDATABASE};
 GRANT ALL PRIVILEGES ON DATABASE ${PGDATABASE} TO postgres;
 \connect ${PGDATABASE} postgres
 
@@ -13,9 +11,6 @@ CREATE TABLE public_keys
 , value text   NOT NULL UNIQUE
 );
 
-/* for the default token only, owner_public_key_id and owner_token_id are NULL
-   for other tokens, those columns are non-NULL
-*/
 CREATE TABLE tokens
 ( id                   serial  PRIMARY KEY
 , value                text    NOT NULL  UNIQUE
@@ -37,8 +32,6 @@ CREATE TABLE account_identifiers
 , UNIQUE (public_key_id,token_id)
 );
 
-/* for untimed accounts, the fields other than id, account_identifier_id, and token are 0
-*/
 CREATE TABLE timing_info
 ( id                      serial    PRIMARY KEY
 , account_identifier_id   int       NOT NULL UNIQUE REFERENCES account_identifiers(id)
@@ -83,7 +76,6 @@ CREATE TABLE internal_commands
 , UNIQUE (hash,command_type)
 );
 
-/* block state hashes mentioned in voting_for fields */
 CREATE TABLE voting_for
 ( id          serial PRIMARY KEY
 , value text  NOT NULL
@@ -91,47 +83,16 @@ CREATE TABLE voting_for
 
 CREATE INDEX idx_voting_for_value ON voting_for(value);
 
-/* import supporting Zkapp-related tables */
-/* zkapp_tables.sql -- support tables for Zkapp commands */
-
-/* Several of the tables below support the following convention, related
-   to NULL values.
-
-   In OCaml, some Zkapp-related types use the constructors Check, which takes a value,
-   and Ignore, which is nullary. In columns following the convention, a NULL means Ignore, while
-   non-NULL means Check.
-
-   Similarly, in OCaml, there are the constructors Set, which takes a value, and
-   Keep, which is nullary. NULL means Keep, and non-NULL means Set.
-
-   The tables that follow this convention have a comment "NULL convention".
-*/
-
-/* the string representation of an algebraic field */
 CREATE TABLE zkapp_field
 ( id                       serial           PRIMARY KEY
 , field                    text             NOT NULL UNIQUE
 );
 
-/* Variable-width arrays of algebraic fields, given as
-   id's from zkapp_field
-
-   Postgresql does not allow enforcing that the array elements are
-   foreign keys
-
-   The elements of the array are NOT NULL (not enforced by Postgresql)
-
-*/
 CREATE TABLE zkapp_field_array
 ( id                       serial  PRIMARY KEY
 , element_ids              int[]   NOT NULL
 );
 
-/* Fixed-width arrays of algebraic fields, given as id's from
-   zkapp_field
-
-   Any element of the array may be NULL, per the NULL convention
-*/
 CREATE TABLE zkapp_states_nullable
 ( id                       serial           PRIMARY KEY
 , element0                 int              REFERENCES zkapp_field(id)
@@ -144,7 +105,7 @@ CREATE TABLE zkapp_states_nullable
 , element7                 int		    REFERENCES zkapp_field(id)
 );
 
-/* like zkapp_states_nullable, but elements are not NULL */
+
 CREATE TABLE zkapp_states
 ( id                       serial           PRIMARY KEY
 , element0                 int              NOT NULL REFERENCES zkapp_field(id)
@@ -157,7 +118,7 @@ CREATE TABLE zkapp_states
 , element7                 int              NOT NULL REFERENCES zkapp_field(id)
 );
 
-/* like zkapp_states, but for action states */
+
 CREATE TABLE zkapp_action_states
 ( id                       serial           PRIMARY KEY
 , element0                 int              NOT NULL REFERENCES zkapp_field(id)
@@ -167,15 +128,11 @@ CREATE TABLE zkapp_action_states
 , element4                 int              NOT NULL REFERENCES zkapp_field(id)
 );
 
-/* the element_ids are non-NULL, and refer to zkapp_field_array
-   they represent a list of arrays of field elements
-*/
 CREATE TABLE zkapp_events
 ( id                       serial           PRIMARY KEY
 , element_ids              int[]            NOT NULL
 );
 
-/* field elements derived from verification keys */
 CREATE TABLE zkapp_verification_key_hashes
 ( id                                    serial          PRIMARY KEY
 , value                                 text            NOT NULL UNIQUE
@@ -220,7 +177,6 @@ CREATE TABLE zkapp_uris
 , value              text    NOT NULL UNIQUE
 );
 
-/* NULL convention */
 CREATE TABLE zkapp_updates
 ( id                       serial           PRIMARY KEY
 , app_state_id             int              NOT NULL REFERENCES zkapp_states_nullable(id)
@@ -245,7 +201,6 @@ CREATE TABLE zkapp_nonce_bounds
 , nonce_upper_bound        bigint           NOT NULL
 );
 
-/* NULL convention */
 CREATE TABLE zkapp_account_precondition
 ( id                       serial     PRIMARY KEY
 , balance_id               int                     REFERENCES zkapp_balance_bounds(id)
@@ -293,14 +248,12 @@ CREATE TABLE zkapp_global_slot_bounds
 , global_slot_upper_bound  bigint          NOT NULL
 );
 
-/* NULL convention */
 CREATE TABLE zkapp_epoch_ledger
 ( id                       serial          PRIMARY KEY
 , hash_id                  int             REFERENCES snarked_ledger_hashes(id)
 , total_currency_id        int             REFERENCES zkapp_amount_bounds(id)
 );
 
-/* NULL convention */
 CREATE TABLE zkapp_epoch_data
 ( id                       serial          PRIMARY KEY
 , epoch_ledger_id          int             REFERENCES zkapp_epoch_ledger(id)
@@ -310,13 +263,11 @@ CREATE TABLE zkapp_epoch_data
 , epoch_length_id          int             REFERENCES zkapp_length_bounds(id)
 );
 
-/* NULL convention */
 CREATE TABLE zkapp_network_precondition
 ( id                               serial                         NOT NULL PRIMARY KEY
 , snarked_ledger_hash_id           int                            REFERENCES snarked_ledger_hashes(id)
 , blockchain_length_id             int                            REFERENCES zkapp_length_bounds(id)
 , min_window_density_id            int                            REFERENCES zkapp_length_bounds(id)
-/* omitting 'last_vrf_output' for now, it's the unit value in OCaml */
 , total_currency_id                int                            REFERENCES zkapp_amount_bounds(id)
 , global_slot_since_genesis        int                            REFERENCES zkapp_global_slot_bounds(id)
 , staking_epoch_data_id            int                            REFERENCES zkapp_epoch_data(id)
@@ -335,10 +286,6 @@ CREATE TYPE may_use_token AS ENUM ('No', 'ParentsOwnToken', 'InheritFromParent')
 
 CREATE TYPE authorization_kind_type AS ENUM ('None_given', 'Signature', 'Proof');
 
-/* invariant: verification_key_hash_id is not NULL iff authorization_kind = Proof
-   in OCaml, the verification key hash is stored with the Proof authorization kind
-   here, they're kept separate so we can use an enum type
-*/
 CREATE TABLE zkapp_account_update_body
 ( id                                    serial          PRIMARY KEY
 , account_identifier_id                 int             NOT NULL  REFERENCES account_identifiers(id)
@@ -359,30 +306,17 @@ CREATE TABLE zkapp_account_update_body
 , verification_key_hash_id              int                       REFERENCES zkapp_verification_key_hashes(id)
 );
 
-/* possible future enhancement: add NULLable authorization column for proofs and signatures */
 CREATE TABLE zkapp_account_update
 ( id                       serial                          PRIMARY KEY
 , body_id                  int                             NOT NULL REFERENCES zkapp_account_update_body(id)
 );
 
-/* a list of of failures for an account update in a zkApp
-   the index is the index into the `account_updates`
-*/
 CREATE TABLE zkapp_account_update_failures
 ( id       serial    PRIMARY KEY
 , index    int       NOT NULL
 , failures text[]    NOT NULL
 );
 
-/* in OCaml, there's a Fee_payer type, which contains a
-   a signature and a reference to the fee payer body. Because
-   we don't store a signature, the fee payer here refers
-   directly to the fee payer body.
-
-   zkapp_account_updates_ids refers to a list of ids in zkapp_account_update.
-   The values in zkapp_account_updates_ids are unenforced foreign keys
-   that reference zkapp_account_update_body(id), and not NULL.
-*/
 CREATE TABLE zkapp_commands
 ( id                                    serial         PRIMARY KEY
 , zkapp_fee_payer_body_id               int            NOT NULL REFERENCES zkapp_fee_payer_body(id)
@@ -412,7 +346,6 @@ CREATE TABLE protocol_versions
 
 CREATE TYPE chain_status_type AS ENUM ('canonical', 'orphaned', 'pending');
 
-/* last_vrf_output is a sequence of hex-digit pairs derived from a bitstring */
 CREATE TABLE blocks
 ( id                           serial   PRIMARY KEY
 , state_hash                   text     NOT NULL UNIQUE
@@ -442,9 +375,6 @@ CREATE INDEX idx_blocks_creator_id ON blocks(creator_id);
 CREATE INDEX idx_blocks_height     ON blocks(height);
 CREATE INDEX idx_chain_status      ON blocks(chain_status);
 
-/* accounts accessed in a block, representing the account
-   state after all transactions in the block have been executed
-*/
 CREATE TABLE accounts_accessed
 ( ledger_index            int     NOT NULL
 , block_id                int     NOT NULL  REFERENCES blocks(id)
@@ -464,7 +394,6 @@ CREATE TABLE accounts_accessed
 CREATE INDEX idx_accounts_accessed_block_id ON accounts_accessed(block_id);
 CREATE INDEX idx_accounts_accessed_block_account_identifier_id ON accounts_accessed(account_identifier_id);
 
-/* accounts created in a block */
 CREATE TABLE accounts_created
 ( block_id                int     NOT NULL  REFERENCES blocks(id)
 , account_identifier_id   int     NOT NULL  REFERENCES account_identifiers(id)
@@ -488,11 +417,6 @@ CREATE INDEX idx_blocks_user_commands_block_id ON blocks_user_commands(block_id)
 CREATE INDEX idx_blocks_user_commands_user_command_id ON blocks_user_commands(user_command_id);
 CREATE INDEX idx_blocks_user_commands_sequence_no ON blocks_user_commands(sequence_no);
 
-/* a join table between blocks and internal_commands, with some additional information
-   the pair sequence_no, secondary_sequence_no gives the order within all transactions in the block
-
-   Blocks command convention
-*/
 CREATE TABLE blocks_internal_commands
 ( block_id              int NOT NULL REFERENCES blocks(id) ON DELETE CASCADE
 , internal_command_id   int NOT NULL REFERENCES internal_commands(id) ON DELETE CASCADE
@@ -507,17 +431,6 @@ CREATE INDEX idx_blocks_internal_commands_block_id ON blocks_internal_commands(b
 CREATE INDEX idx_blocks_internal_commands_internal_command_id ON blocks_internal_commands(internal_command_id);
 CREATE INDEX idx_blocks_internal_commands_sequence_no ON blocks_internal_commands(sequence_no);
 CREATE INDEX idx_blocks_internal_commands_secondary_sequence_no ON blocks_internal_commands(secondary_sequence_no);
-
-/* a join table between blocks and zkapp_commands
-   sequence_no gives the order within all transactions in the block
-
-   The `failure_reasons` column is not NULL iff `status` is `failed`. The
-   entries in the array are unenforced foreign key references to `zkapp_account_update_failures(id)`.
-   Each element of the array refers to the failures for an account update in `account_updates`, and
-   is not NULL.
-
-   Blocks command convention
-*/
 
 CREATE TABLE blocks_zkapp_commands
 ( block_id                        int                 NOT NULL REFERENCES blocks(id) ON DELETE CASCADE
