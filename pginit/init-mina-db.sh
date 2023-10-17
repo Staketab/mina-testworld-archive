@@ -105,7 +105,6 @@ CREATE TABLE zkapp_states_nullable
 , element7                 int		    REFERENCES zkapp_field(id)
 );
 
-
 CREATE TABLE zkapp_states
 ( id                       serial           PRIMARY KEY
 , element0                 int              NOT NULL REFERENCES zkapp_field(id)
@@ -117,7 +116,6 @@ CREATE TABLE zkapp_states
 , element6                 int              NOT NULL REFERENCES zkapp_field(id)
 , element7                 int              NOT NULL REFERENCES zkapp_field(id)
 );
-
 
 CREATE TABLE zkapp_action_states
 ( id                       serial           PRIMARY KEY
@@ -431,6 +429,7 @@ CREATE INDEX idx_blocks_internal_commands_block_id ON blocks_internal_commands(b
 CREATE INDEX idx_blocks_internal_commands_internal_command_id ON blocks_internal_commands(internal_command_id);
 CREATE INDEX idx_blocks_internal_commands_sequence_no ON blocks_internal_commands(sequence_no);
 CREATE INDEX idx_blocks_internal_commands_secondary_sequence_no ON blocks_internal_commands(secondary_sequence_no);
+
 
 CREATE TABLE blocks_zkapp_commands
 ( block_id                        int                 NOT NULL REFERENCES blocks(id) ON DELETE CASCADE
