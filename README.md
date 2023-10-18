@@ -12,9 +12,25 @@ cd mina-testworld-archive
 ```bash
 make setup
 ```
-## 3. Start the Coordinator
+
+# Carefully fill in any missing fields in the .env variables file
+
+## 3. Start
 Run this command to start the node:  
 ```bash
 make ar
 ```
+Stop the nodes:
+```bash
+make ar-down
+```
 
+## Additional commands:
+Check logs
+```bash
+make logs
+```
+Check node status
+```bash
+make status
+```
