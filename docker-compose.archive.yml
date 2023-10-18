@@ -82,10 +82,7 @@ services:
     environment: 
       PGUSER: ${PGUSER}
       PGPASSWORD: ${PGPASSWORD}
-    volumes:
-      - ./berkeley.json:/root/berkeley.json
-      - ./archive-checker.sh:/root/archive-checker.sh
-    command: mina-archive run --postgres-uri ${PGURI} --server-port 3086 --log-level debug --config-file /root/berkeley.json
+    command: mina-archive run --postgres-uri ${PGURI} --server-port 3086 --log-level debug
     networks:
       - archive
       - mina
